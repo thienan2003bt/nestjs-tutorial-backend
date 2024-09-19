@@ -1,4 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { NotFoundException } from '@nestjs/common';
 
 @Injectable()
 export class UsersService {
@@ -32,7 +35,11 @@ export class UsersService {
     // Methods
     findAll(status?: 'ACTIVE' | 'INACTIVE') {
         if (status) {
-            return this.users.filter(user => user.status === status);
+            const foundUsers = this.users.filter(user => user.status === status);
+            if (!foundUsers || foundUsers.length === 0) {
+                throw new NotFoundException('User status not found!');
+            }
+            return foundUsers;
         }
 
         return this.users;
@@ -40,10 +47,13 @@ export class UsersService {
 
     findOne(id: number) {
         const foundUser = this.users.find(user => user.id === id);
+        if (!foundUser) {
+            throw new NotFoundException('User not found!');
+        }
         return foundUser;
     }
 
-    create(user: { name: string; email: string; status: 'ACTIVE' | 'INACTIVE' }) {
+    create(user: CreateUserDto) {
         const newUserByHighestId = [...this.users].sort((a, b) => b.id - a.id);
         const newUser = {
             id: newUserByHighestId[0]?.id + 1,
@@ -54,9 +64,11 @@ export class UsersService {
         return newUser;
     }
 
-    update(id: number, updatedUser: { name?: string; email?: string; status?: 'ACTIVE' | 'INACTIVE' }) {
+    update(id: number, updatedUser: UpdateUserDto) {
+        let foundUser = false;
         this.users = this.users.map(user => {
             if (user.id === id) {
+                foundUser = true;
                 return {
                     ...user,
                     ...updatedUser, //override the value of found user
@@ -66,12 +78,17 @@ export class UsersService {
             return user;
         });
 
+        if (foundUser === false) {
+            throw new NotFoundException('User to update is not found!');
+        }
         return this.findOne(id);
     }
 
     delete(id: number) {
         const removedUser = this.findOne(id);
-
+        if (!removedUser) {
+            throw new NotFoundException('User to delete is not found!');
+        }
         this.users = this.users.filter(user => user.id !== id);
         return removedUser;
     }
